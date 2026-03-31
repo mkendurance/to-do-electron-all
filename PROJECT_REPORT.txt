@@ -1,0 +1,359 @@
+================================================================================
+  TODO ELECTRON APP — PROJECT REPORT
+  Repository: https://github.com/mkendurance/to-do-electron
+  Date: March 2026
+================================================================================
+
+TABLE OF CONTENTS
+─────────────────
+1. Project Overview
+2. Technologies Used
+3. Project Structure
+4. How to Run the App
+5. How to Build the App (Installer)
+6. How to Run the Tests
+7. Test Architecture — Key Change (Single App Instance)
+8. Test Cases Covered
+9. Test Report Summary
+10. Troubleshooting
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+This repository contains a fully functional Todo desktop application built
+with Electron, along with a comprehensive suite of end-to-end (E2E) tests
+written using Playwright.
+
+The application allows users to:
+  - Add new todo tasks
+  - Mark tasks as complete or incomplete
+  - Edit task text inline
+  - Delete individual tasks
+  - Filter tasks by All / Active / Completed status
+  - Clear all completed tasks at once
+  - See a live count of remaining tasks
+
+The project is split into two separate Node.js projects:
+  - todo-electron/         → The Electron desktop app
+  - todo-electron-tests/   → The Playwright E2E test suite
+
+================================================================================
+2. TECHNOLOGIES USED
+================================================================================
+
+APPLICATION (todo-electron/)
+─────────────────────────────
+  Technology          Version       Purpose
+  ──────────────────────────────────────────────────────────────────────────────
+  Electron            ^28.0.0       Desktop application framework. Wraps a
+                                    Chromium browser and Node.js runtime to
+                                    deliver native-feeling desktop apps from
+                                    web technologies (HTML/CSS/JS).
+
+  HTML5               —             Markup for the application UI (index.html).
+                                    No frontend framework is used; pure vanilla
+                                    HTML keeps the app lightweight.
+
+  CSS3                —             All styling is written inline in index.html
+                                    using a single <style> block. Uses flexbox,
+                                    transitions, and CSS custom properties.
+
+  Vanilla JavaScript  —             All application logic (adding, deleting,
+                                    editing, filtering todos) is plain JS with
+                                    no external runtime dependencies.
+
+  Node.js             ≥18.x         Runtime required by Electron's main process
+                                    (main.js). Manages the BrowserWindow lifecycle
+                                    and IPC.
+
+  electron-builder    ^24.9.1       Packages the app into a distributable
+                                    installer (NSIS for Windows, DMG for macOS,
+                                    AppImage for Linux).
+
+TESTING (todo-electron-tests/)
+───────────────────────────────
+  Technology          Version       Purpose
+  ──────────────────────────────────────────────────────────────────────────────
+  Playwright          ^1.40.0       End-to-end testing framework with native
+                                    Electron support via the _electron API. It
+                                    launches the Electron process, gets a Page
+                                    handle to the renderer window, and lets you
+                                    interact with UI elements just like a user.
+
+  @playwright/test    ^1.40.0       The test runner bundled with Playwright.
+                                    Provides test(), expect(), beforeAll(),
+                                    afterAll(), beforeEach() hooks and a rich
+                                    assertion library.
+
+  Node.js             ≥18.x         Runtime for running the test suite.
+
+  HTML Reporters      built-in      Playwright's built-in HTML and JSON reporters
+  + JSON Reporters                  generate visual reports and machine-readable
+                                    results after every test run.
+
+================================================================================
+3. PROJECT STRUCTURE
+================================================================================
+
+to-do-electron/
+├── .gitignore
+├── README.md
+│
+├── todo-electron/                    ← The Electron App
+│   ├── package.json                  ← App dependencies & build config
+│   ├── main.js                       ← Electron main process (creates window)
+│   └── index.html                    ← Full app UI: HTML + CSS + JS in one file
+│
+└── todo-electron-tests/              ← The Playwright Test Suite
+    ├── package.json                  ← Test dependencies & npm scripts
+    ├── playwright.config.js          ← Playwright configuration (reporters,
+    │                                   workers, timeouts)
+    └── tests/
+        └── todo.spec.js              ← All 20 E2E test cases
+
+================================================================================
+4. HOW TO RUN THE APP
+================================================================================
+
+Prerequisites
+─────────────
+  - Node.js 18 or newer  →  https://nodejs.org/
+  - npm (comes with Node.js)
+
+Steps
+─────
+  1. Open a terminal / command prompt.
+
+  2. Navigate into the app folder:
+       cd todo-electron
+
+  3. Install dependencies:
+       npm install
+
+  4. Start the app:
+       npm start
+       — OR —
+       npx electron .
+
+  The Todo App window will open immediately.
+
+NOTE (Windows): If you see a security warning about running Electron for the
+first time, click "More info" → "Run anyway".
+
+================================================================================
+5. HOW TO BUILD THE APP (Create an Installer)
+================================================================================
+
+Building creates a distributable installer for your platform.
+
+Steps
+─────
+  1. Navigate into the app folder:
+       cd todo-electron
+
+  2. Install dependencies (if not done yet):
+       npm install
+
+  3. Run the appropriate build command:
+
+       Windows (produces an .exe NSIS installer in dist/)
+         npm run build
+
+       macOS (produces a .dmg in dist/)
+         npm run build:mac
+
+       Linux (produces an .AppImage in dist/)
+         npm run build:linux
+
+  4. The installer will be placed in:
+       todo-electron/dist/
+
+  The build uses electron-builder under the hood. The build configuration is
+  defined in the "build" key inside todo-electron/package.json.
+
+NOTE: To produce a Windows build from a non-Windows machine you may need to
+install Wine. It is easiest to build on the target OS.
+
+================================================================================
+6. HOW TO RUN THE TESTS
+================================================================================
+
+Prerequisites
+─────────────
+  - Node.js 18 or newer
+  - The todo-electron app must NOT be running manually (the tests launch
+    their own instance)
+  - Windows/macOS/Linux with a display (tests are headed by default via
+    Electron's own window; no separate browser install is needed)
+
+Steps
+─────
+  1. Open a terminal in the test folder:
+       cd todo-electron-tests
+
+  2. Install test dependencies:
+       npm install
+
+  3. Run all tests:
+       npm test
+       — OR —
+       npx playwright test
+
+  4. View the HTML report (auto-generated after the run):
+       npm run test:report
+       — OR —
+       npx playwright show-report playwright-report
+
+  Optional: Run in headed mode to watch the window interact:
+       npm run test:headed
+
+What happens during a test run
+───────────────────────────────
+  Playwright launches the Electron app ONCE at the start (beforeAll hook),
+  runs all 20 test cases against that single running window, then closes
+  the app ONCE at the end (afterAll hook).
+
+  Before each individual test, a beforeEach hook deletes all existing todos
+  so every test starts with a clean, empty list.
+
+  Results are written to:
+    - Console (list format)                    → printed in the terminal
+    - playwright-report/index.html             → open in any browser
+    - test-results/results.json                → machine-readable JSON
+
+================================================================================
+7. TEST ARCHITECTURE — KEY CHANGE (SINGLE APP INSTANCE)
+================================================================================
+
+Previous behaviour (before this update)
+─────────────────────────────────────────
+  Each test case called electron.launch() at the start and app.close() at the
+  end. This meant:
+
+    Test 1: launch app → run test → close app
+    Test 2: launch app → run test → close app
+    ...
+
+  Problems with this approach:
+    a) Slow — Electron takes ~1–2 seconds to start, multiplied by N tests.
+    b) Unreliable — rapid open/close cycles can leave orphaned processes.
+    c) Wasteful — Electron is a full Chromium browser; booting it repeatedly
+       is expensive.
+
+Updated behaviour (after this fix)
+────────────────────────────────────
+  The app is launched ONCE in beforeAll() and closed ONCE in afterAll().
+  All 20 tests share the same window.
+
+  beforeAll:  launch app once
+  beforeEach: delete all todos (state reset)
+  test 1 … 20: run against the same window
+  afterAll:   close app once
+
+  This is the correct pattern for Electron + Playwright testing and is
+  documented in the official Playwright Electron testing guide.
+
+  Benefits:
+    ✅ Dramatically faster — only one cold start
+    ✅ More stable — no repeated process lifecycle churn
+    ✅ Easier to debug — window stays open between tests in headed mode
+    ✅ Scales well — adding more tests has near-zero overhead
+
+  The key addition in playwright.config.js is:
+      workers: 1
+  Electron does not support parallel test contexts in the same process, so
+  all tests must run sequentially in a single worker.
+
+================================================================================
+8. TEST CASES COVERED
+================================================================================
+
+  ID     Description
+  ─────────────────────────────────────────────────────────────────────────────
+  TC-01  App launches and shows correct title ("Todo App")
+  TC-02  Add a single todo task
+  TC-03  Add multiple todo tasks
+  TC-04  Input field clears after adding a task
+  TC-05  Empty input does not create a task
+  TC-06  Add task using the Enter key
+  TC-07  Mark a task as completed (checkbox toggle)
+  TC-08  Completed task has strikethrough text style
+  TC-09  Uncheck a completed task returns it to active
+  TC-10  Delete a single task
+  TC-11  Delete one task among multiple (correct item deleted)
+  TC-12  Edit a task and save the new text
+  TC-13  Cancel edit reverts to original text
+  TC-14  Stats counter shows correct remaining task count
+  TC-15  Filter "Active" shows only incomplete tasks
+  TC-16  Filter "Completed" shows only completed tasks
+  TC-17  Filter "All" shows all tasks regardless of status
+  TC-18  "Clear Completed" removes all completed tasks
+  TC-19  "Clear Completed" button is hidden when no completed tasks
+  TC-20  Empty state message is shown when the list is empty
+  ─────────────────────────────────────────────────────────────────────────────
+  Total: 20 test cases covering all core application features
+
+================================================================================
+9. TEST REPORT SUMMARY
+================================================================================
+
+  Total Tests     : 20
+  Expected Result : All 20 pass in a single uninterrupted run
+  Workers Used    : 1 (sequential, required for Electron)
+  App Starts      : 1 (shared across all tests)
+  App Closes      : 1 (at the very end)
+
+  Features tested :
+    - UI rendering / app launch
+    - Task creation (button click + Enter key)
+    - Input validation (empty input guard)
+    - Task completion toggle
+    - Task deletion
+    - Inline editing (save & cancel)
+    - Filter navigation (All / Active / Completed)
+    - Bulk operations (Clear Completed)
+    - Stats display
+    - Empty state display
+
+  Report formats generated:
+    - HTML report  : todo-electron-tests/playwright-report/index.html
+    - JSON report  : todo-electron-tests/test-results/results.json
+    - Console      : list format in terminal
+
+================================================================================
+10. TROUBLESHOOTING
+================================================================================
+
+Problem: "electron.launch: Process failed to launch"
+  Solution: Make sure Electron is installed inside todo-electron/node_modules.
+            Run `npm install` inside the todo-electron/ folder first.
+            The test path in todo.spec.js points to:
+              ../../todo-electron/main.js
+            Verify this relative path is correct from your working directory.
+
+Problem: Tests time out waiting for elements
+  Solution: Check that the HTML element IDs/classes in the test match those
+            in index.html. The selectors used are:
+              #todo-input, #add-btn, .todo-item, .todo-text,
+              .todo-checkbox, .edit-btn, .delete-btn, .edit-input,
+              .save-btn, .cancel-btn, #clear-completed, #stats,
+              [data-filter="all|active|completed"], .empty-state
+
+Problem: Tests fail because todos from a previous test bleed in
+  Solution: This is handled by beforeEach() which deletes all items.
+            If you see unexpected state, check that beforeEach completes
+            before the test body starts (increase timeout in config if needed).
+
+Problem: "Cannot find module 'playwright'"
+  Solution: Run `npm install` inside todo-electron-tests/ to install
+            @playwright/test and playwright.
+
+Problem: Multiple Electron windows open simultaneously
+  Solution: Ensure workers: 1 is set in playwright.config.js (it is, by
+            default in this config). Never use fullyParallel: true with
+            Electron tests.
+
+================================================================================
+END OF REPORT
+================================================================================
